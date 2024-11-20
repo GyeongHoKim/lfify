@@ -1,0 +1,36 @@
+{
+  "name": "lfify",
+  "private": "false",
+  "version": "1.0.0",
+  "description": "make your crlf to lf",
+  "main": "index.cjs",
+  "type": "commonjs",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "repository": "github:GyeongHoKim/lfify",
+  "publishConfig": {
+    "@GyeongHoKim:registry": "https://npm.pkg.github.com"
+  },
+  "keywords": [
+    "eol",
+    "lf",
+    "crlf"
+  ],
+  "author": "GyeongHoKim",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/GyeongHoKim/lfify/issues"
+  },
+  "homepage": "https://github.com/GyeongHoKim/lfify#readme",
+  "dependencies": {
+    "ignore": "^6.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0",
+    "jest": "^29.7.0"
+  }
+}
