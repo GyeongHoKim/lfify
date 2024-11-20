@@ -5,6 +5,9 @@
   "description": "make your crlf to lf",
   "main": "index.cjs",
   "type": "commonjs",
+  "bin": {
+    "lfify": "./index.cjs"
+  },
   "scripts": {
     "test": "jest",
     "lint": "eslint ."
