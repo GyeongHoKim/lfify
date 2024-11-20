@@ -14,10 +14,13 @@ It is useful when your development environment is Windows.
 
  # Installation
 
+> If you do not have a Github personal access token, please create one.
+
 first, edit your `.npmrc` file.
 
 ```bash
-@GyeongHoKim:registry=https://npm.pkg.github.com
+@gyeonghokim:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=<your-github-personal-access-token>
 ```
 
 then, install it.
