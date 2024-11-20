@@ -1,6 +1,5 @@
 {
   "name": "@gyeonghokim/lfify",
-  "private": "false",
   "version": "1.0.0",
   "description": "make your crlf to lf",
   "main": "index.cjs",
