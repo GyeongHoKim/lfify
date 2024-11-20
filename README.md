@@ -26,7 +26,7 @@ first, edit your `.npmrc` file.
 then, install it.
 
 ```bash
-npm install --save-dev lfify
+npm install --save-dev @gyeonghokim/lfify
 ```
 
 # Usage
