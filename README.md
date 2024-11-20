@@ -14,7 +14,7 @@ It is useful when your development environment is Windows.
 
  # Installation
 
-> If you do not have a Github personal access token, please create one.
+> If you do not have a Github personal access token, please create **CLASSIC** token that has `packages: read` permission.
 
 first, edit your `.npmrc` file.
 
@@ -33,21 +33,23 @@ npm install --save-dev @gyeonghokim/lfify
 
 ## Basic Usage
 
+if you do not want to install it, you can use it with `npx`, however, you still need to specify registry and auth token in your `.npmrc` file.
+
 ```bash
-npx lfify
+npx @gyeonghokim/lfify
 ```
 
 ## Specify Custom Directory
 
 ```bash
-npx lfify ./path/to/your/project
+npx @gyeonghokim/lfify ./path/to/your/project
 ```
 
 ## Script on your `package.json`
 
 ```json
 "scripts": {
-  "lfify": "lfify"
+  "lfify": "@gyeonghokim/lfify"
 }
 ```
 
