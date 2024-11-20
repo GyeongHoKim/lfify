@@ -7,6 +7,9 @@ on:
 jobs:
   publish-github-registry:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
     - uses: actions/checkout@v3
     - name: Setup Node.js
