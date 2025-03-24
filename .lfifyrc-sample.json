@@ -1,0 +1,16 @@
+{
+  "entry": "./",
+  "include": [
+    "**/*.{js,ts,jsx,tsx}",
+    "**/*.{json,md}",
+    "**/*.{css,scss}",
+    "**/*.{html,vue}"
+  ],
+  "exclude": [
+    "node_modules/**",
+    ".git/**",
+    "dist/**",
+    "build/**",
+    "coverage/**"
+  ]
+} 

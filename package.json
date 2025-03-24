@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/GyeongHoKim/lfify#readme",
   "dependencies": {
-    "ignore": "^6.0.2"
+    "micromatch": "^4.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
