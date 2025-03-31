@@ -1,6 +1,6 @@
 {
-  "name": "@gyeonghokim/lfify",
-  "version": "1.0.0",
+  "name": "lfify",
+  "version": "0.0.0-development",
   "private": false,
   "description": "make your crlf to lf",
   "main": "index.cjs",
@@ -17,7 +17,7 @@
     "url": "https://github.com/GyeongHoKim/lfify"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org"
   },
   "keywords": [
     "eol",
