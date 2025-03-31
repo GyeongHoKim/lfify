@@ -63,13 +63,10 @@ async function readConfig(configPath) {
   try {
     const configContent = await fs.readFile(configPath, 'utf8');
     const config = JSON.parse(configContent);
-    
+
     // Validate required fields
     for (const [key, validator] of Object.entries(CONFIG_SCHEMA)) {
-      if (!config[key]) {
-        throw new Error(`Invalid or missing "${key}" in configuration file`);
-      }
-      if (!validator(config[key])) {
+      if (config[key] && !validator(config[key])) {
         throw new Error(`Invalid "${key}" in configuration file`);
       }
     }
@@ -77,7 +74,7 @@ async function readConfig(configPath) {
     return {
       ...DEFAULT_CONFIG,
       ...config,
-      entry: path.resolve(process.cwd(), config.entry)
+      entry: path.resolve(process.cwd(), config.entry || DEFAULT_CONFIG.entry)
     };
   } catch (err) {
     if (err.code === 'ENOENT') {
@@ -85,7 +82,11 @@ async function readConfig(configPath) {
     } else {
       logger.error(`Error reading configuration file: ${err.message}`, configPath);
     }
-    process.exit(1);
+    
+    if (require.main === module) {
+      process.exit(1);
+    }
+    throw err;
   }
 }
 
@@ -133,6 +134,9 @@ async function convertCRLFtoLF(dirPath, config) {
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
+    /**
+     * @todo Node.js is single-threaded, if I want to convert files in parallel, I need to use worker_threads
+     */
     await Promise.all(entries.map(async entry => {
       const fullPath = path.join(dirPath, entry.name);
       const relativePath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
@@ -163,6 +167,10 @@ async function processFile(filePath) {
     const updatedContent = content.replace(/\r\n/g, "\n");
 
     if (content !== updatedContent) {
+      /**
+       * @todo V8 javascript engine with 32-bit system cannot handle more than 2GB file,
+       * so I should use createReadStream and createWriteStream to handle large files
+       */
       await fs.writeFile(filePath, updatedContent, "utf8");
       logger.info(`converted: ${filePath}`);
     } else {
@@ -174,7 +182,7 @@ async function processFile(filePath) {
   }
 }
 
-(async () => {
+async function main() {
   const options = parseArgs();
   const config = await readConfig(options.configPath);
 
@@ -183,7 +191,11 @@ async function processFile(filePath) {
   await convertCRLFtoLF(config.entry, config);
 
   logger.info("conversion completed.", config.entry);
-})();
+}
+
+if (require.main === module) {
+  main();
+}
 
 module.exports = {
   convertCRLFtoLF,
