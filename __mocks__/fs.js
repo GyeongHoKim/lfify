@@ -19,7 +19,9 @@ const promises = {
     if (mockFiles.has(path)) {
       return Promise.resolve(mockFiles.get(path));
     }
-    return Promise.reject(new Error(`ENOENT: no such file or directory, open '${path}'`));
+    const error = new Error(`ENOENT: no such file or directory, open '${path}'`);
+    error.code = 'ENOENT';
+    return Promise.reject(error);
   }),
 
   writeFile: jest.fn().mockImplementation((path, content) => {
