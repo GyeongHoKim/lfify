@@ -1,9 +1,7 @@
 # LFify
 
-> ⚠️ **Warning**: All files must be encoded in UTF-8. The library is being developed to automatically convert UTF-8 with BOM to UTF-8 without BOM. Using different encodings may cause unexpected issues.
-
-A lightweight Node.js library to convert CRLF to LF line endings.  
-It is useful when your development environment is Windows.  
+A lightweight Node.js program to convert CRLF to LF line endings.  
+It is useful when your development environment is Windows.
 
 ## Getting started
 
@@ -25,21 +23,21 @@ create .lfifyrc.json
     "build/**",
     "coverage/**"
   ]
-} 
+}
 ```
 
 and then
 
 ```bash
-npx lifify
+npx lfify
 ```
 
 you can add options below.
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
+| Option            | Description                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
 | `--config <path>` | Specify a custom path for the configuration file. Default is `.lfifyrc.json` in the current directory. |
 
 # Development
