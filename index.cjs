@@ -20,7 +20,10 @@ const micromatch = require("micromatch");
 
 /**
  * @typedef {Object} CommandOptions
- * @property {string} configPath - 설정 파일 경로
+ * @property {string} [configPath] - 설정 파일 경로
+ * @property {string} [entry] - CLI로 지정한 entry 경로
+ * @property {string[]} [include] - CLI로 지정한 include 패턴
+ * @property {string[]} [exclude] - CLI로 지정한 exclude 패턴
  */
 
 /**
@@ -31,6 +34,22 @@ const DEFAULT_CONFIG = {
   entry: './',
   include: [],
   exclude: []
+};
+
+/**
+ * Sensible defaults when no config file is provided
+ * @type {Config}
+ */
+const SENSIBLE_DEFAULTS = {
+  entry: './',
+  include: ['**/*'],
+  exclude: [
+    'node_modules/**',
+    '.git/**',
+    'dist/**',
+    'build/**',
+    'coverage/**'
+  ]
 };
 
 /**
@@ -91,6 +110,83 @@ async function readConfig(configPath) {
 }
 
 /**
+ * Resolve final configuration from CLI options, config file, and defaults
+ * @param {CommandOptions} cliOptions - parsed CLI options
+ * @returns {Promise<Config>} - resolved configuration
+ */
+async function resolveConfig(cliOptions) {
+  let fileConfig = null;
+
+  // Try to load config file if it exists
+  if (cliOptions.configPath) {
+    try {
+      const configContent = await fs.readFile(cliOptions.configPath, 'utf8');
+      fileConfig = JSON.parse(configContent);
+
+      // Validate config file fields
+      for (const [key, validator] of Object.entries(CONFIG_SCHEMA)) {
+        if (fileConfig[key] && !validator(fileConfig[key])) {
+          throw new Error(`Invalid "${key}" in configuration file`);
+        }
+      }
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        // Re-throw parsing/validation errors
+        logger.error(`Error reading configuration file: ${err.message}`, cliOptions.configPath);
+        throw err;
+      }
+      // ENOENT is okay - config file is optional now
+    }
+  }
+
+  // Determine final values with precedence: CLI > config file > defaults
+  const hasCLIInclude = Array.isArray(cliOptions.include) && cliOptions.include.length > 0;
+  const hasCLIExclude = Array.isArray(cliOptions.exclude) && cliOptions.exclude.length > 0;
+  const hasCLIEntry = typeof cliOptions.entry === 'string';
+
+  const hasFileConfig = fileConfig !== null;
+  const hasFileInclude = hasFileConfig && Array.isArray(fileConfig.include) && fileConfig.include.length > 0;
+  const hasFileExclude = hasFileConfig && Array.isArray(fileConfig.exclude) && fileConfig.exclude.length > 0;
+  const hasFileEntry = hasFileConfig && typeof fileConfig.entry === 'string';
+
+  // Resolve each config property
+  let include, exclude, entry;
+
+  // Include: CLI > file > default
+  if (hasCLIInclude) {
+    include = cliOptions.include;
+  } else if (hasFileInclude) {
+    include = fileConfig.include;
+  } else {
+    include = SENSIBLE_DEFAULTS.include;
+  }
+
+  // Exclude: CLI > file > default
+  if (hasCLIExclude) {
+    exclude = cliOptions.exclude;
+  } else if (hasFileExclude) {
+    exclude = fileConfig.exclude;
+  } else {
+    exclude = SENSIBLE_DEFAULTS.exclude;
+  }
+
+  // Entry: CLI > file > default
+  if (hasCLIEntry) {
+    entry = cliOptions.entry;
+  } else if (hasFileEntry) {
+    entry = fileConfig.entry;
+  } else {
+    entry = SENSIBLE_DEFAULTS.entry;
+  }
+
+  return {
+    entry: path.resolve(process.cwd(), entry),
+    include,
+    exclude
+  };
+}
+
+/**
  * Parse command line arguments
  * @returns {CommandOptions} - parsed arguments
  */
@@ -101,9 +197,39 @@ function parseArgs() {
   };
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--config' && args[i + 1]) {
-      options.configPath = args[i + 1];
-      i++;
+    const arg = args[i];
+    const nextArg = args[i + 1];
+
+    switch (arg) {
+      case '--config':
+        if (nextArg) {
+          options.configPath = nextArg;
+          i++;
+        }
+        break;
+
+      case '--entry':
+        if (nextArg) {
+          options.entry = nextArg;
+          i++;
+        }
+        break;
+
+      case '--include':
+        if (nextArg) {
+          options.include = options.include || [];
+          options.include.push(nextArg);
+          i++;
+        }
+        break;
+
+      case '--exclude':
+        if (nextArg) {
+          options.exclude = options.exclude || [];
+          options.exclude.push(nextArg);
+          i++;
+        }
+        break;
     }
   }
 
@@ -184,7 +310,7 @@ async function processFile(filePath) {
 
 async function main() {
   const options = parseArgs();
-  const config = await readConfig(options.configPath);
+  const config = await resolveConfig(options);
 
   logger.info(`converting CRLF to LF in: ${config.entry}`, config.entry);
 
@@ -202,4 +328,7 @@ module.exports = {
   processFile,
   readConfig,
   parseArgs,
+  resolveConfig,
+  shouldProcessFile,
+  SENSIBLE_DEFAULTS,
 };
