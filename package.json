@@ -14,11 +14,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/GyeongHoKim/lfify"
+    "url": "https://github.com/GyeongHoKim/lfify.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
-    "provenance": true
+    "provenance": true,
+    "tag": "latest"
   },
   "keywords": [
     "eol",
