@@ -9,7 +9,9 @@
     "lfify": "./index.cjs"
   },
   "scripts": {
-    "test": "jest",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "jest --testPathPattern=\"index\\.test\\.js\"",
+    "test:e2e": "jest --testPathPattern=\"index\\.e2e\\.test\\.js\"",
     "lint": "eslint ."
   },
   "repository": {
