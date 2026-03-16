@@ -1,6 +1,7 @@
 const mock = require('mock-fs');
-const { readConfig, parseArgs, processFile, resolveConfig, shouldProcessFile, SENSIBLE_DEFAULTS } = require('./index.cjs');
+const { readConfig, parseArgs, processFile, resolveConfig, shouldProcessFile, collectFiles, SENSIBLE_DEFAULTS } = require('./index.cjs');
 const fs = require('fs');
+const path = require('path');
 
 function baseMock(overrides = {}) {
   return {
@@ -135,6 +136,23 @@ describe('CRLF to LF Converter', () => {
         process.argv = ['node', 'lfify', '--log-level', level];
         expect(parseArgs().logLevel).toBe(level);
       }
+    });
+
+    it('should set workers to true when --workers flag is provided', () => {
+      process.argv = ['node', 'lfify', '--workers'];
+      expect(parseArgs().workers).toBe(true);
+    });
+
+    it('should leave workers undefined when --workers is not provided', () => {
+      process.argv = ['node', 'lfify'];
+      expect(parseArgs().workers).toBeUndefined();
+    });
+
+    it('should handle --workers together with other flags', () => {
+      process.argv = ['node', 'lfify', '--workers', '--entry', './src'];
+      const opts = parseArgs();
+      expect(opts.workers).toBe(true);
+      expect(opts.entry).toContain('src');
     });
   });
 
@@ -301,6 +319,62 @@ describe('CRLF to LF Converter', () => {
         logLevel: 'info'
       });
       expect(config.logLevel).toBe('info');
+    });
+
+    it('should default workers to false when not specified', async () => {
+      expect((await resolveConfig({})).workers).toBe(false);
+    });
+
+    it('should use workers: true from config file', async () => {
+      mock(baseMock({ '.lfifyrc.json': JSON.stringify({
+        entry: './', include: ['**/*.js'], exclude: ['node_modules/**'], workers: true
+      })}));
+      expect((await resolveConfig({ configPath: '.lfifyrc.json' })).workers).toBe(true);
+    });
+
+    it('should override config file workers with CLI --workers', async () => {
+      mock(baseMock({ '.lfifyrc.json': JSON.stringify({
+        entry: './', include: ['**/*.js'], exclude: ['node_modules/**'], workers: false
+      })}));
+      expect((await resolveConfig({ configPath: '.lfifyrc.json', workers: true })).workers).toBe(true);
+    });
+
+    it('should keep workers false when config file absent and CLI not set', async () => {
+      expect((await resolveConfig({ configPath: 'nonexistent.json' })).workers).toBe(false);
+    });
+  });
+
+  describe('collectFiles', () => {
+    it('should collect files matching include patterns', async () => {
+      const config = { include: ['**/*.txt'], exclude: ['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**'] };
+      const files = await collectFiles(process.cwd(), config);
+      const rel = files.map(f => f.replace(/\\/g, '/'));
+      expect(rel.some(f => f.includes('src/file1.txt'))).toBe(true);
+      expect(rel.some(f => f.includes('src/subdir/file3.txt'))).toBe(true);
+    });
+
+    it('should not collect files matching exclude patterns', async () => {
+      const config = { include: ['**/*.js'], exclude: ['node_modules/**'] };
+      const files = await collectFiles(process.cwd(), config);
+      expect(files.every(f => !f.includes('node_modules'))).toBe(true);
+    });
+
+    it('should recurse into subdirectories', async () => {
+      const config = { include: ['**/*.txt'], exclude: ['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**'] };
+      const files = await collectFiles(process.cwd(), config);
+      expect(files.some(f => f.includes('subdir'))).toBe(true);
+    });
+
+    it('should return empty array when no files match', async () => {
+      const config = { include: ['**/*.nonexistent'], exclude: [] };
+      expect(await collectFiles(process.cwd(), config)).toEqual([]);
+    });
+
+    it('should return absolute paths', async () => {
+      const config = { include: ['**/*.js'], exclude: ['node_modules/**'] };
+      const files = await collectFiles(process.cwd(), config);
+      expect(files.length).toBeGreaterThan(0);
+      files.forEach(f => expect(path.isAbsolute(f)).toBe(true));
     });
   });
 });
