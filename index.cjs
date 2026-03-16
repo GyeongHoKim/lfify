@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
-const fs = require("fs").promises;
-const path = require("path");
-const micromatch = require("micromatch");
+const { readFile, readdir, rename } = require("fs/promises");
+const { createReadStream, createWriteStream } = require("fs");
+const { resolve, join, relative } = require("path");
+const { isMatch } = require("micromatch");
+const { Transform } = require("stream");
+const { pipeline } = require("stream/promises");
 
 /** @type {ReadonlyArray<string>} */
 const LOG_LEVELS = ['error', 'warn', 'info'];
@@ -113,7 +116,7 @@ const logger = {
  */
 async function readConfig(configPath) {
   try {
-    const configContent = await fs.readFile(configPath, 'utf8');
+    const configContent = await readFile(configPath, 'utf8');
     const config = JSON.parse(configContent);
 
     // Validate required fields
@@ -126,7 +129,7 @@ async function readConfig(configPath) {
     return {
       ...DEFAULT_CONFIG,
       ...config,
-      entry: path.resolve(process.cwd(), config.entry || DEFAULT_CONFIG.entry)
+      entry: resolve(process.cwd(), config.entry || DEFAULT_CONFIG.entry)
     };
   } catch (err) {
     if (err.code === 'ENOENT') {
@@ -134,7 +137,7 @@ async function readConfig(configPath) {
     } else {
       logger.error(`Error reading configuration file: ${err.message}`, configPath);
     }
-    
+
     if (require.main === module) {
       process.exit(1);
     }
@@ -153,7 +156,7 @@ async function resolveConfig(cliOptions) {
   // Try to load config file if it exists
   if (cliOptions.configPath) {
     try {
-      const configContent = await fs.readFile(cliOptions.configPath, 'utf8');
+      const configContent = await readFile(cliOptions.configPath, 'utf8');
       fileConfig = JSON.parse(configContent);
 
       // Validate config file fields
@@ -224,7 +227,7 @@ async function resolveConfig(cliOptions) {
   }
 
   return {
-    entry: path.resolve(process.cwd(), entry),
+    entry: resolve(process.cwd(), entry),
     include,
     exclude,
     logLevel
@@ -295,8 +298,8 @@ function parseArgs() {
  * @returns {boolean} - true if file should be processed
  */
 function shouldProcessFile(filePath, config) {
-  const isIncluded = micromatch.isMatch(filePath, config.include);
-  const isExcluded = micromatch.isMatch(filePath, config.exclude);
+  const isIncluded = isMatch(filePath, config.include);
+  const isExcluded = isMatch(filePath, config.exclude);
 
   return isIncluded && !isExcluded;
 }
@@ -310,14 +313,14 @@ function shouldProcessFile(filePath, config) {
  */
 async function convertCRLFtoLF(dirPath, config) {
   try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const entries = await readdir(dirPath, { withFileTypes: true });
 
     /**
      * @todo Node.js is single-threaded, if I want to convert files in parallel, I need to use worker_threads
      */
     await Promise.all(entries.map(async entry => {
-      const fullPath = path.join(dirPath, entry.name);
-      const relativePath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
+      const fullPath = join(dirPath, entry.name);
+      const relativePath = relative(process.cwd(), fullPath).replace(/\\/g, "/");
 
       if (entry.isDirectory()) {
         await convertCRLFtoLF(fullPath, config);
@@ -340,22 +343,36 @@ async function convertCRLFtoLF(dirPath, config) {
  * @throws {Error} - if there's an error reading or writing file
  */
 async function processFile(filePath) {
-  try {
-    const content = await fs.readFile(filePath, "utf8");
-    const updatedContent = content.replace(/\r\n/g, "\n");
-
-    if (content !== updatedContent) {
-      /**
-       * @todo V8 javascript engine with 32-bit system cannot handle more than 2GB file,
-       * so I should use createReadStream and createWriteStream to handle large files
-       */
-      await fs.writeFile(filePath, updatedContent, "utf8");
-      logger.info(`converted: ${filePath}`);
-    } else {
-      logger.info(`no need to convert: ${filePath}`, filePath);
+  const tmpPath = `${filePath}.tmp`;
+  const crlf2lf = new Transform({
+    transform(chunk, encoding, callback) {
+      const enc = encoding === 'buffer' ? 'utf8' : encoding;
+      const prev = this._leftover ?? '';
+      this._leftover = '';
+      const str = prev + chunk.toString(enc);
+      const safe = str.endsWith('\r') ? str.slice(0, -1) : str;
+      this._leftover = str.endsWith('\r') ? '\r' : '';
+      callback(null, safe.replace(/\r\n/g, '\n'));
+    },
+    flush(callback) {
+      callback(null, this._leftover ?? '');
     }
+  });
+  try {
+    await pipeline(
+      createReadStream(filePath, { encoding: 'utf8' }),
+      crlf2lf,
+      createWriteStream(tmpPath, { encoding: 'utf8' })
+    );
+    logger.info(`converted ${filePath}`);
   } catch (err) {
     logger.error(`error processing file: ${filePath}`, filePath, err);
+    throw err;
+  }
+  try {
+    await rename(tmpPath, filePath);
+  } catch (err) {
+    logger.error(`error rename file: ${tmpPath} to ${filePath}`);
     throw err;
   }
 }
