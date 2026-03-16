@@ -19,7 +19,7 @@
     "url": "https://github.com/GyeongHoKim/lfify.git"
   },
   "publishConfig": {
-    "registry": "https://registry.npmjs.org",
+    "registry": "https://registry.npmjs.org/",
     "provenance": true,
     "tag": "latest"
   },
