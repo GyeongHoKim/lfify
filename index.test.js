@@ -141,6 +141,20 @@ describe('CRLF to LF Converter', () => {
       expect(options.exclude).toBeUndefined();
       expect(options.entry).toBeUndefined();
     });
+
+    it('should return logLevel when --log-level option is provided', () => {
+      process.argv = ['node', 'lfify', '--log-level', 'info'];
+      const options = parseArgs();
+      expect(options.logLevel).toBe('info');
+    });
+
+    it('should accept error, warn, info for --log-level', () => {
+      for (const level of ['error', 'warn', 'info']) {
+        process.argv = ['node', 'lfify', '--log-level', level];
+        const options = parseArgs();
+        expect(options.logLevel).toBe(level);
+      }
+    });
   });
 
   describe('shouldProcessFile', () => {
@@ -291,6 +305,36 @@ describe('CRLF to LF Converter', () => {
 
       expect(config.include).toEqual(SENSIBLE_DEFAULTS.include);
       expect(config.exclude).toEqual(['custom/**']);
+    });
+
+    it('should include logLevel in config, defaulting to error', async () => {
+      const config = await resolveConfig({});
+      expect(config.logLevel).toBe('error');
+    });
+
+    it('should use logLevel from config file when provided', async () => {
+      require('fs').__setConfig(JSON.stringify({
+        entry: './',
+        include: ['**/*.js'],
+        exclude: ['node_modules/**'],
+        logLevel: 'info'
+      }));
+      const config = await resolveConfig({ configPath: '.lfifyrc.json' });
+      expect(config.logLevel).toBe('info');
+    });
+
+    it('should override config file logLevel with CLI --log-level', async () => {
+      require('fs').__setConfig(JSON.stringify({
+        entry: './',
+        include: ['**/*.js'],
+        exclude: ['node_modules/**'],
+        logLevel: 'warn'
+      }));
+      const config = await resolveConfig({
+        configPath: '.lfifyrc.json',
+        logLevel: 'info'
+      });
+      expect(config.logLevel).toBe('info');
     });
   });
 }); 
