@@ -6,6 +6,8 @@ const { resolve, join, relative } = require("path");
 const { isMatch } = require("micromatch");
 const { Transform } = require("stream");
 const { pipeline } = require("stream/promises");
+const { Worker } = require("worker_threads");
+const os = require("os");
 
 /** @type {ReadonlyArray<string>} */
 const LOG_LEVELS = ['error', 'warn', 'info'];
@@ -16,6 +18,7 @@ const LOG_LEVELS = ['error', 'warn', 'info'];
  * @property {string[]} include - 포함할 파일 패턴 목록
  * @property {string[]} exclude - 제외할 파일 패턴 목록
  * @property {'error'|'warn'|'info'} [logLevel] - 로그 레벨 (error: 에러만, warn: 에러+경고, info: 전체)
+ * @property {boolean} [workers] - worker thread pool 사용 여부
  */
 
 /**
@@ -33,6 +36,7 @@ const LOG_LEVELS = ['error', 'warn', 'info'];
  * @property {string[]} [include] - CLI로 지정한 include 패턴
  * @property {string[]} [exclude] - CLI로 지정한 exclude 패턴
  * @property {'error'|'warn'|'info'} [logLevel] - CLI로 지정한 로그 레벨
+ * @property {boolean} [workers] - CLI로 지정한 worker thread 사용 여부
  */
 
 /**
@@ -43,7 +47,8 @@ const DEFAULT_CONFIG = {
   entry: './',
   include: [],
   exclude: [],
-  logLevel: 'error'
+  logLevel: 'error',
+  workers: false
 };
 
 /**
@@ -60,7 +65,8 @@ const SENSIBLE_DEFAULTS = {
     'build/**',
     'coverage/**'
   ],
-  logLevel: 'error'
+  logLevel: 'error',
+  workers: false
 };
 
 /**
@@ -188,7 +194,7 @@ async function resolveConfig(cliOptions) {
   const hasFileLogLevel = hasFileConfig && fileConfig.logLevel && LOG_LEVELS.includes(fileConfig.logLevel);
 
   // Resolve each config property
-  let include, exclude, entry, logLevel;
+  let include, exclude, entry, logLevel, workers;
 
   // Include: CLI > file > default
   if (hasCLIInclude) {
@@ -226,11 +232,15 @@ async function resolveConfig(cliOptions) {
     logLevel = SENSIBLE_DEFAULTS.logLevel;
   }
 
+  // Workers: true if CLI --workers or config file workers: true
+  workers = cliOptions.workers === true || (hasFileConfig && fileConfig.workers === true);
+
   return {
     entry: resolve(process.cwd(), entry),
     include,
     exclude,
-    logLevel
+    logLevel,
+    workers
   };
 }
 
@@ -285,6 +295,10 @@ function parseArgs() {
           i++;
         }
         break;
+
+      case '--workers':
+        options.workers = true;
+        break;
     }
   }
 
@@ -305,6 +319,59 @@ function shouldProcessFile(filePath, config) {
 }
 
 /**
+ * Recursively collect all files matching config patterns
+ * @param {string} dirPath - directory path to search
+ * @param {Config} config - configuration object
+ * @returns {Promise<string[]>} - absolute paths of matching files
+ */
+async function collectFiles(dirPath, config) {
+  const results = [];
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  await Promise.all(entries.map(async entry => {
+    const fullPath = join(dirPath, entry.name);
+    const relativePath = relative(process.cwd(), fullPath).replace(/\\/g, '/');
+    if (entry.isDirectory()) {
+      results.push(...await collectFiles(fullPath, config));
+    } else if (entry.isFile() && shouldProcessFile(relativePath, config)) {
+      results.push(fullPath);
+    } else {
+      logger.info(`skipped: ${relativePath}`, fullPath);
+    }
+  }));
+  return results;
+}
+
+/**
+ * Process files using a worker thread pool
+ * @param {string[]} filePaths - absolute paths of files to process
+ * @returns {Promise<void>}
+ */
+async function processFilesWithPool(filePaths) {
+  const WORKER_PATH = join(__dirname, 'worker.cjs');
+  const poolSize = Math.min(os.cpus().length, filePaths.length);
+  if (poolSize === 0) return;
+
+  let nextIndex = 0;
+
+  function runWorker(filePath) {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(WORKER_PATH, { workerData: { filePath } });
+      worker.on('message', msg => msg.ok ? resolve() : reject(new Error(msg.error)));
+      worker.on('error', reject);
+      worker.on('exit', code => { if (code !== 0) reject(new Error(`Worker exited with code ${code}`)); });
+    });
+  }
+
+  async function pump() {
+    while (nextIndex < filePaths.length) {
+      await runWorker(filePaths[nextIndex++]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: poolSize }, () => pump()));
+}
+
+/**
  * traverse a specific directory recursively and convert all files' CRLF to LF
  * @param {string} dirPath - directory path to search
  * @param {Config} config - configuration object
@@ -314,14 +381,9 @@ function shouldProcessFile(filePath, config) {
 async function convertCRLFtoLF(dirPath, config) {
   try {
     const entries = await readdir(dirPath, { withFileTypes: true });
-
-    /**
-     * @todo Node.js is single-threaded, if I want to convert files in parallel, I need to use worker_threads
-     */
     await Promise.all(entries.map(async entry => {
       const fullPath = join(dirPath, entry.name);
-      const relativePath = relative(process.cwd(), fullPath).replace(/\\/g, "/");
-
+      const relativePath = relative(process.cwd(), fullPath).replace(/\\/g, '/');
       if (entry.isDirectory()) {
         await convertCRLFtoLF(fullPath, config);
       } else if (entry.isFile() && shouldProcessFile(relativePath, config)) {
@@ -380,14 +442,17 @@ async function processFile(filePath) {
 async function main() {
   const options = parseArgs();
   const config = await resolveConfig(options);
-
   logger.setLogLevel(config.logLevel);
-
   logger.info(`converting CRLF to LF in: ${config.entry}`, config.entry);
 
-  await convertCRLFtoLF(config.entry, config);
+  if (config.workers) {
+    const filePaths = await collectFiles(config.entry, config);
+    await processFilesWithPool(filePaths);
+  } else {
+    await convertCRLFtoLF(config.entry, config);
+  }
 
-  logger.info("conversion completed.", config.entry);
+  logger.info('conversion completed.', config.entry);
 }
 
 if (require.main === module) {
@@ -396,7 +461,9 @@ if (require.main === module) {
 
 module.exports = {
   convertCRLFtoLF,
+  collectFiles,
   processFile,
+  processFilesWithPool,
   readConfig,
   parseArgs,
   resolveConfig,
