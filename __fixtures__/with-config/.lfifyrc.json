@@ -1,0 +1,5 @@
+{
+  "entry": ".",
+  "include": ["**/*.js"],
+  "exclude": ["skip/**"]
+}
