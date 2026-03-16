@@ -4,15 +4,20 @@ const fs = require("fs").promises;
 const path = require("path");
 const micromatch = require("micromatch");
 
+/** @type {ReadonlyArray<string>} */
+const LOG_LEVELS = ['error', 'warn', 'info'];
+
 /**
  * @typedef {Object} Config
  * @property {string} entry - 처리할 시작 디렉토리 경로
  * @property {string[]} include - 포함할 파일 패턴 목록
  * @property {string[]} exclude - 제외할 파일 패턴 목록
+ * @property {'error'|'warn'|'info'} [logLevel] - 로그 레벨 (error: 에러만, warn: 에러+경고, info: 전체)
  */
 
 /**
  * @typedef {Object} Logger
+ * @property {function(string): void} setLogLevel - 로그 레벨 설정 ('error'|'warn'|'info')
  * @property {function(string, string): void} warn - 경고 메시지 출력
  * @property {function(string, string, Error=): void} error - 에러 메시지 출력
  * @property {function(string, string): void} info - 정보 메시지 출력
@@ -24,6 +29,7 @@ const micromatch = require("micromatch");
  * @property {string} [entry] - CLI로 지정한 entry 경로
  * @property {string[]} [include] - CLI로 지정한 include 패턴
  * @property {string[]} [exclude] - CLI로 지정한 exclude 패턴
+ * @property {'error'|'warn'|'info'} [logLevel] - CLI로 지정한 로그 레벨
  */
 
 /**
@@ -33,7 +39,8 @@ const micromatch = require("micromatch");
 const DEFAULT_CONFIG = {
   entry: './',
   include: [],
-  exclude: []
+  exclude: [],
+  logLevel: 'error'
 };
 
 /**
@@ -49,7 +56,8 @@ const SENSIBLE_DEFAULTS = {
     'dist/**',
     'build/**',
     'coverage/**'
-  ]
+  ],
+  logLevel: 'error'
 };
 
 /**
@@ -60,16 +68,41 @@ const CONFIG_SCHEMA = {
   entry: (value) => typeof value === 'string',
   include: (value) => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'),
   exclude: (value) => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'),
+  logLevel: (value) => LOG_LEVELS.includes(value),
 };
 
 /**
- * Logging utility
- * @type {Logger}
+ * Logging utility. 기본은 error만 출력. setLogLevel로 변경 가능.
+ * @type {Logger & { _level: string, setLogLevel: function(string): void }}
  */
 const logger = {
-  warn: (msg, path) => console.warn(`${msg} ${path}`),
-  error: (msg, path, err) => console.error(`${msg} ${path}`, err),
-  info: (msg, path) => console.log(`${msg} ${path}`),
+  _level: 'error',
+
+  setLogLevel(level) {
+    if (LOG_LEVELS.includes(level)) {
+      this._level = level;
+    }
+  },
+
+  error(msg, path, err) {
+    if (err !== undefined) {
+      console.error(`${msg} ${path}`, err);
+    } else {
+      console.error(`${msg} ${path}`);
+    }
+  },
+
+  warn(msg, path) {
+    if (LOG_LEVELS.indexOf(this._level) >= LOG_LEVELS.indexOf('warn')) {
+      console.warn(`${msg} ${path}`);
+    }
+  },
+
+  info(msg, path) {
+    if (LOG_LEVELS.indexOf(this._level) >= LOG_LEVELS.indexOf('info')) {
+      console.log(`${msg} ${path}`);
+    }
+  },
 };
 
 /**
@@ -143,14 +176,16 @@ async function resolveConfig(cliOptions) {
   const hasCLIInclude = Array.isArray(cliOptions.include) && cliOptions.include.length > 0;
   const hasCLIExclude = Array.isArray(cliOptions.exclude) && cliOptions.exclude.length > 0;
   const hasCLIEntry = typeof cliOptions.entry === 'string';
+  const hasCLILogLevel = typeof cliOptions.logLevel === 'string' && LOG_LEVELS.includes(cliOptions.logLevel);
 
   const hasFileConfig = fileConfig !== null;
   const hasFileInclude = hasFileConfig && Array.isArray(fileConfig.include) && fileConfig.include.length > 0;
   const hasFileExclude = hasFileConfig && Array.isArray(fileConfig.exclude) && fileConfig.exclude.length > 0;
   const hasFileEntry = hasFileConfig && typeof fileConfig.entry === 'string';
+  const hasFileLogLevel = hasFileConfig && fileConfig.logLevel && LOG_LEVELS.includes(fileConfig.logLevel);
 
   // Resolve each config property
-  let include, exclude, entry;
+  let include, exclude, entry, logLevel;
 
   // Include: CLI > file > default
   if (hasCLIInclude) {
@@ -179,10 +214,20 @@ async function resolveConfig(cliOptions) {
     entry = SENSIBLE_DEFAULTS.entry;
   }
 
+  // LogLevel: CLI > file > default
+  if (hasCLILogLevel) {
+    logLevel = cliOptions.logLevel;
+  } else if (hasFileLogLevel) {
+    logLevel = fileConfig.logLevel;
+  } else {
+    logLevel = SENSIBLE_DEFAULTS.logLevel;
+  }
+
   return {
     entry: path.resolve(process.cwd(), entry),
     include,
-    exclude
+    exclude,
+    logLevel
   };
 }
 
@@ -227,6 +272,13 @@ function parseArgs() {
         if (nextArg) {
           options.exclude = options.exclude || [];
           options.exclude.push(nextArg);
+          i++;
+        }
+        break;
+
+      case '--log-level':
+        if (nextArg && LOG_LEVELS.includes(nextArg)) {
+          options.logLevel = nextArg;
           i++;
         }
         break;
@@ -311,6 +363,8 @@ async function processFile(filePath) {
 async function main() {
   const options = parseArgs();
   const config = await resolveConfig(options);
+
+  logger.setLogLevel(config.logLevel);
 
   logger.info(`converting CRLF to LF in: ${config.entry}`, config.entry);
 

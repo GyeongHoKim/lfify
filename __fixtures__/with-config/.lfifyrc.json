@@ -1,5 +1,6 @@
 {
   "entry": ".",
+  "logLevel": "error",
   "include": ["**/*.js"],
   "exclude": ["skip/**"]
 }
