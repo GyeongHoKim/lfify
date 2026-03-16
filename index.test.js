@@ -2,7 +2,6 @@ const { readConfig, parseArgs, processFile, resolveConfig, shouldProcessFile, SE
 
 jest.mock('fs');
 jest.mock('path');
-jest.mock('micromatch');
 
 describe('CRLF to LF Converter', () => {
   const MOCK_FILE_INFO = {
