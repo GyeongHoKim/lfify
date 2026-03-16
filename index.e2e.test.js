@@ -48,6 +48,8 @@ describe('E2E: CRLF to LF with real filesystem', () => {
   describe('US1: default run (no config)', () => {
     it('converts files under entry and excludes node_modules and .git', async () => {
       await copyDir(path.join(FIXTURES_DIR, 'default-sensible'), tempDir);
+      await fs.rename(path.join(tempDir, '_git'), path.join(tempDir, '.git'));
+      await fs.rename(path.join(tempDir, '_node_modules'), path.join(tempDir, 'node_modules'));
       process.chdir(tempDir);
 
       const config = await resolveConfig({});
