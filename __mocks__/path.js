@@ -14,4 +14,4 @@ path.relative = jest.fn().mockImplementation((from, to) => {
   return actualPath.relative(from, to);
 });
 
-module.exports = path; 
+module.exports = path;
