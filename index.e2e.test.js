@@ -49,7 +49,10 @@ describe('E2E: CRLF to LF with real filesystem', () => {
     it('converts files under entry and excludes node_modules and .git', async () => {
       await copyDir(path.join(FIXTURES_DIR, 'default-sensible'), tempDir);
       await fs.rename(path.join(tempDir, '_git'), path.join(tempDir, '.git'));
-      await fs.rename(path.join(tempDir, '_node_modules'), path.join(tempDir, 'node_modules'));
+      await fs.rename(
+        path.join(tempDir, '_node_modules'),
+        path.join(tempDir, 'node_modules'),
+      );
       process.chdir(tempDir);
 
       const config = await resolveConfig({});
@@ -57,14 +60,20 @@ describe('E2E: CRLF to LF with real filesystem', () => {
 
       const appJs = await fs.readFile(path.join(tempDir, 'src', 'app.js'));
       expect(appJs.includes(CRLF)).toBe(false);
-      expect(appJs.equals(Buffer.from('console.log("app");\n', 'utf8'))).toBe(true);
+      expect(appJs.equals(Buffer.from('console.log("app");\n', 'utf8'))).toBe(
+        true,
+      );
 
-      const readmeTxt = await fs.readFile(path.join(tempDir, 'src', 'readme.txt'));
+      const readmeTxt = await fs.readFile(
+        path.join(tempDir, 'src', 'readme.txt'),
+      );
       expect(readmeTxt.includes(CRLF)).toBe(false);
-      expect(readmeTxt.equals(Buffer.from('hello\nworld\n', 'utf8'))).toBe(true);
+      expect(readmeTxt.equals(Buffer.from('hello\nworld\n', 'utf8'))).toBe(
+        true,
+      );
 
       const nodeModulesPkg = await fs.readFile(
-        path.join(tempDir, 'node_modules', 'pkg', 'index.js')
+        path.join(tempDir, 'node_modules', 'pkg', 'index.js'),
       );
       expect(nodeModulesPkg.includes(CRLF)).toBe(true);
 
@@ -85,7 +94,9 @@ describe('E2E: CRLF to LF with real filesystem', () => {
       expect(mainJs.includes(CRLF)).toBe(false);
       expect(mainJs.equals(Buffer.from('const x = 1;\n', 'utf8'))).toBe(true);
 
-      const skipOtherJs = await fs.readFile(path.join(tempDir, 'skip', 'other.js'));
+      const skipOtherJs = await fs.readFile(
+        path.join(tempDir, 'skip', 'other.js'),
+      );
       expect(skipOtherJs.includes(CRLF)).toBe(true);
 
       const docTxt = await fs.readFile(path.join(tempDir, 'doc.txt'));
@@ -100,7 +111,7 @@ describe('E2E: CRLF to LF with real filesystem', () => {
 
       const config = await resolveConfig({
         configPath: '.lfifyrc.json',
-        include: ['**/*.js']
+        include: ['**/*.js'],
       });
       await convertCRLFtoLF(config.entry, config);
 

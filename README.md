@@ -42,12 +42,12 @@ npx lfify
 
 ## Options
 
-| Option               | Description                                                                 |
-| -------------------- | --------------------------------------------------------------------------- |
-| `--config <path>`    | Specify a custom path for the configuration file. Default is `.lfifyrc.json`. |
-| `--entry <path>`     | Specify the entry directory to process. Default is `./`.                    |
-| `--include <pattern>`| Glob pattern(s) to include. Can be used multiple times.                     |
-| `--exclude <pattern>`| Glob pattern(s) to exclude. Can be used multiple times.                     |
+| Option                | Description                                                                   |
+| --------------------- | ----------------------------------------------------------------------------- |
+| `--config <path>`     | Specify a custom path for the configuration file. Default is `.lfifyrc.json`. |
+| `--entry <path>`      | Specify the entry directory to process. Default is `./`.                      |
+| `--include <pattern>` | Glob pattern(s) to include. Can be used multiple times.                       |
+| `--exclude <pattern>` | Glob pattern(s) to exclude. Can be used multiple times.                       |
 
 ## Examples
 
@@ -68,12 +68,14 @@ npx lfify --config ./custom-config.json
 ## Default behavior
 
 When no config file is found and no CLI options are provided, lfify uses sensible defaults:
+
 - **include**: `**/*` (all files)
 - **exclude**: `node_modules/**`, `.git/**`, `dist/**`, `build/**`, `coverage/**`
 
 ## Priority
 
 CLI options take precedence over config file values:
+
 1. CLI arguments (highest)
 2. Config file
 3. Default values (lowest)

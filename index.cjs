@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-const { readFile, readdir, rename, unlink } = require("fs/promises");
-const { createReadStream, createWriteStream } = require("fs");
-const { resolve, join, relative } = require("path");
-const { isMatch } = require("micromatch");
-const { Transform } = require("stream");
-const { pipeline } = require("stream/promises");
+const { readFile, readdir, rename, unlink } = require('fs/promises');
+const { createReadStream, createWriteStream } = require('fs');
+const { resolve, join, relative } = require('path');
+const { isMatch } = require('micromatch');
+const { Transform } = require('stream');
+const { pipeline } = require('stream/promises');
 
 /** @type {ReadonlyArray<string>} */
 const LOG_LEVELS = ['error', 'warn', 'info'];
@@ -43,7 +43,7 @@ const DEFAULT_CONFIG = {
   entry: './',
   include: [],
   exclude: [],
-  logLevel: 'error'
+  logLevel: 'error',
 };
 
 /**
@@ -53,14 +53,8 @@ const DEFAULT_CONFIG = {
 const SENSIBLE_DEFAULTS = {
   entry: './',
   include: ['**/*'],
-  exclude: [
-    'node_modules/**',
-    '.git/**',
-    'dist/**',
-    'build/**',
-    'coverage/**'
-  ],
-  logLevel: 'error'
+  exclude: ['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**'],
+  logLevel: 'error',
 };
 
 /**
@@ -69,8 +63,14 @@ const SENSIBLE_DEFAULTS = {
  */
 const CONFIG_SCHEMA = {
   entry: (value) => typeof value === 'string',
-  include: (value) => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'),
-  exclude: (value) => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'),
+  include: (value) =>
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === 'string'),
+  exclude: (value) =>
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === 'string'),
   logLevel: (value) => LOG_LEVELS.includes(value),
 };
 
@@ -129,13 +129,16 @@ async function readConfig(configPath) {
     return {
       ...DEFAULT_CONFIG,
       ...config,
-      entry: resolve(process.cwd(), config.entry || DEFAULT_CONFIG.entry)
+      entry: resolve(process.cwd(), config.entry || DEFAULT_CONFIG.entry),
     };
   } catch (err) {
     if (err.code === 'ENOENT') {
       logger.error(`Configuration file not found: ${configPath}`, configPath);
     } else {
-      logger.error(`Error reading configuration file: ${err.message}`, configPath);
+      logger.error(
+        `Error reading configuration file: ${err.message}`,
+        configPath,
+      );
     }
 
     if (require.main === module) {
@@ -168,7 +171,10 @@ async function resolveConfig(cliOptions) {
     } catch (err) {
       if (err.code !== 'ENOENT') {
         // Re-throw parsing/validation errors
-        logger.error(`Error reading configuration file: ${err.message}`, cliOptions.configPath);
+        logger.error(
+          `Error reading configuration file: ${err.message}`,
+          cliOptions.configPath,
+        );
         throw err;
       }
       // ENOENT is okay - config file is optional now
@@ -176,16 +182,29 @@ async function resolveConfig(cliOptions) {
   }
 
   // Determine final values with precedence: CLI > config file > defaults
-  const hasCLIInclude = Array.isArray(cliOptions.include) && cliOptions.include.length > 0;
-  const hasCLIExclude = Array.isArray(cliOptions.exclude) && cliOptions.exclude.length > 0;
+  const hasCLIInclude =
+    Array.isArray(cliOptions.include) && cliOptions.include.length > 0;
+  const hasCLIExclude =
+    Array.isArray(cliOptions.exclude) && cliOptions.exclude.length > 0;
   const hasCLIEntry = typeof cliOptions.entry === 'string';
-  const hasCLILogLevel = typeof cliOptions.logLevel === 'string' && LOG_LEVELS.includes(cliOptions.logLevel);
+  const hasCLILogLevel =
+    typeof cliOptions.logLevel === 'string' &&
+    LOG_LEVELS.includes(cliOptions.logLevel);
 
   const hasFileConfig = fileConfig !== null;
-  const hasFileInclude = hasFileConfig && Array.isArray(fileConfig.include) && fileConfig.include.length > 0;
-  const hasFileExclude = hasFileConfig && Array.isArray(fileConfig.exclude) && fileConfig.exclude.length > 0;
+  const hasFileInclude =
+    hasFileConfig &&
+    Array.isArray(fileConfig.include) &&
+    fileConfig.include.length > 0;
+  const hasFileExclude =
+    hasFileConfig &&
+    Array.isArray(fileConfig.exclude) &&
+    fileConfig.exclude.length > 0;
   const hasFileEntry = hasFileConfig && typeof fileConfig.entry === 'string';
-  const hasFileLogLevel = hasFileConfig && fileConfig.logLevel && LOG_LEVELS.includes(fileConfig.logLevel);
+  const hasFileLogLevel =
+    hasFileConfig &&
+    fileConfig.logLevel &&
+    LOG_LEVELS.includes(fileConfig.logLevel);
 
   // Resolve each config property
   let include, exclude, entry, logLevel;
@@ -230,7 +249,7 @@ async function resolveConfig(cliOptions) {
     entry: resolve(process.cwd(), entry),
     include,
     exclude,
-    logLevel
+    logLevel,
   };
 }
 
@@ -241,7 +260,7 @@ async function resolveConfig(cliOptions) {
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
-    configPath: '.lfifyrc.json'
+    configPath: '.lfifyrc.json',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -318,18 +337,23 @@ async function convertCRLFtoLF(dirPath, config) {
     /**
      * @todo Node.js is single-threaded, if I want to convert files in parallel, I need to use worker_threads
      */
-    await Promise.all(entries.map(async entry => {
-      const fullPath = join(dirPath, entry.name);
-      const relativePath = relative(process.cwd(), fullPath).replace(/\\/g, "/");
+    await Promise.all(
+      entries.map(async (entry) => {
+        const fullPath = join(dirPath, entry.name);
+        const relativePath = relative(process.cwd(), fullPath).replace(
+          /\\/g,
+          '/',
+        );
 
-      if (entry.isDirectory()) {
-        await convertCRLFtoLF(fullPath, config);
-      } else if (entry.isFile() && shouldProcessFile(relativePath, config)) {
-        await processFile(fullPath);
-      } else {
-        logger.info(`skipped: ${relativePath}`, fullPath);
-      }
-    }));
+        if (entry.isDirectory()) {
+          await convertCRLFtoLF(fullPath, config);
+        } else if (entry.isFile() && shouldProcessFile(relativePath, config)) {
+          await processFile(fullPath);
+        } else {
+          logger.info(`skipped: ${relativePath}`, fullPath);
+        }
+      }),
+    );
   } catch (err) {
     logger.error(`error reading directory: ${dirPath}`, dirPath, err);
     throw err;
@@ -356,13 +380,13 @@ async function processFile(filePath) {
     },
     flush(callback) {
       callback(null, this._leftover ?? '');
-    }
+    },
   });
   try {
     await pipeline(
       createReadStream(filePath, { encoding: 'utf8' }),
       crlf2lf,
-      createWriteStream(tmpPath, { encoding: 'utf8' })
+      createWriteStream(tmpPath, { encoding: 'utf8' }),
     );
     logger.info(`converted ${filePath}`);
   } catch (err) {
@@ -388,7 +412,7 @@ async function main() {
 
   await convertCRLFtoLF(config.entry, config);
 
-  logger.info("conversion completed.", config.entry);
+  logger.info('conversion completed.', config.entry);
 }
 
 if (require.main === module) {

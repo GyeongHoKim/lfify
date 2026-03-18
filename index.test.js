@@ -1,5 +1,12 @@
 const mock = require('mock-fs');
-const { readConfig, parseArgs, processFile, resolveConfig, shouldProcessFile, SENSIBLE_DEFAULTS } = require('./index.cjs');
+const {
+  readConfig,
+  parseArgs,
+  processFile,
+  resolveConfig,
+  shouldProcessFile,
+  SENSIBLE_DEFAULTS,
+} = require('./index.cjs');
 const fs = require('fs');
 
 function baseMock(overrides = {}) {
@@ -13,7 +20,7 @@ function baseMock(overrides = {}) {
     'node_modules/file.js': 'console.log("test");\r\n',
     'node_modules/subdir/file4.txt': 'test\r\n',
     'index.js': 'console.log("test");\r\n',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -35,17 +42,19 @@ describe('CRLF to LF Converter', () => {
       const validConfig = {
         entry: './',
         include: ['*.js'],
-        exclude: ['node_modules/**']
+        exclude: ['node_modules/**'],
       };
       mock(baseMock({ '.lfifyrc.json': JSON.stringify(validConfig) }));
 
       const config = await readConfig('.lfifyrc.json');
 
-      expect(config).toEqual(expect.objectContaining({
-        entry: expect.any(String),
-        include: expect.any(Array),
-        exclude: expect.any(Array)
-      }));
+      expect(config).toEqual(
+        expect.objectContaining({
+          entry: expect.any(String),
+          include: expect.any(Array),
+          exclude: expect.any(Array),
+        }),
+      );
     });
 
     it('should throw error when config file is not found', async () => {
@@ -61,7 +70,12 @@ describe('CRLF to LF Converter', () => {
 
   describe('parseArgs', () => {
     it('should return config path when --config option is provided', () => {
-      process.argv = ['node', 'lfify', '--config', './path/for/test/.lfifyrc.json'];
+      process.argv = [
+        'node',
+        'lfify',
+        '--config',
+        './path/for/test/.lfifyrc.json',
+      ];
 
       const options = parseArgs();
 
@@ -83,7 +97,14 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should return multiple include patterns when multiple --include options are provided', () => {
-      process.argv = ['node', 'lfify', '--include', '**/*.js', '--include', '**/*.ts'];
+      process.argv = [
+        'node',
+        'lfify',
+        '--include',
+        '**/*.js',
+        '--include',
+        '**/*.ts',
+      ];
       const options = parseArgs();
       expect(options.include).toEqual(['**/*.js', '**/*.ts']);
     });
@@ -95,7 +116,14 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should return multiple exclude patterns when multiple --exclude options are provided', () => {
-      process.argv = ['node', 'lfify', '--exclude', 'dist/**', '--exclude', 'coverage/**'];
+      process.argv = [
+        'node',
+        'lfify',
+        '--exclude',
+        'dist/**',
+        '--exclude',
+        'coverage/**',
+      ];
       const options = parseArgs();
       expect(options.exclude).toEqual(['dist/**', 'coverage/**']);
     });
@@ -107,7 +135,20 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should handle all options together', () => {
-      process.argv = ['node', 'lfify', '--config', 'custom.json', '--include', '*.js', '--exclude', 'dist/**', '--entry', './lib', '--log-level', 'info'];
+      process.argv = [
+        'node',
+        'lfify',
+        '--config',
+        'custom.json',
+        '--include',
+        '*.js',
+        '--exclude',
+        'dist/**',
+        '--entry',
+        './lib',
+        '--log-level',
+        'info',
+      ];
       const options = parseArgs();
       expect(options.configPath).toBe('custom.json');
       expect(options.include).toEqual(['*.js']);
@@ -146,7 +187,9 @@ describe('CRLF to LF Converter', () => {
 
     it('should return false when file matches exclude pattern', () => {
       const config = { include: ['**/*.js'], exclude: ['node_modules/**'] };
-      expect(shouldProcessFile('node_modules/pkg/index.js', config)).toBe(false);
+      expect(shouldProcessFile('node_modules/pkg/index.js', config)).toBe(
+        false,
+      );
     });
 
     it('should return false when file does not match include pattern', () => {
@@ -155,13 +198,19 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should handle multiple include patterns', () => {
-      const config = { include: ['**/*.js', '**/*.ts'], exclude: ['node_modules/**'] };
+      const config = {
+        include: ['**/*.js', '**/*.ts'],
+        exclude: ['node_modules/**'],
+      };
       expect(shouldProcessFile('src/app.js', config)).toBe(true);
       expect(shouldProcessFile('src/app.ts', config)).toBe(true);
     });
 
     it('should handle multiple exclude patterns', () => {
-      const config = { include: ['**/*.js'], exclude: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**'] };
+      const config = {
+        include: ['**/*.js'],
+        exclude: ['node_modules/**', 'dist/**', 'build/**', 'coverage/**'],
+      };
       expect(shouldProcessFile('src/file.js', config)).toBe(true);
       expect(shouldProcessFile('node_modules/pkg/file.js', config)).toBe(false);
       expect(shouldProcessFile('dist/bundle.js', config)).toBe(false);
@@ -194,7 +243,7 @@ describe('CRLF to LF Converter', () => {
       const options = {
         include: ['**/*.js'],
         exclude: ['node_modules/**'],
-        entry: './src'
+        entry: './src',
       };
       const config = await resolveConfig(options);
 
@@ -211,17 +260,19 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should override config file values with CLI options', async () => {
-      mock(baseMock({
-        '.lfifyrc.json': JSON.stringify({
-          entry: './',
-          include: ['**/*.md'],
-          exclude: ['dist/**']
-        })
-      }));
+      mock(
+        baseMock({
+          '.lfifyrc.json': JSON.stringify({
+            entry: './',
+            include: ['**/*.md'],
+            exclude: ['dist/**'],
+          }),
+        }),
+      );
 
       const options = {
         configPath: '.lfifyrc.json',
-        include: ['**/*.js']
+        include: ['**/*.js'],
       };
       const config = await resolveConfig(options);
 
@@ -230,13 +281,15 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should load config file when configPath is provided and file exists', async () => {
-      mock(baseMock({
-        '.lfifyrc.json': JSON.stringify({
-          entry: './lib',
-          include: ['**/*.ts'],
-          exclude: ['test/**']
-        })
-      }));
+      mock(
+        baseMock({
+          '.lfifyrc.json': JSON.stringify({
+            entry: './lib',
+            include: ['**/*.ts'],
+            exclude: ['test/**'],
+          }),
+        }),
+      );
 
       const options = { configPath: '.lfifyrc.json' };
       const config = await resolveConfig(options);
@@ -275,30 +328,34 @@ describe('CRLF to LF Converter', () => {
     });
 
     it('should use logLevel from config file when provided', async () => {
-      mock(baseMock({
-        '.lfifyrc.json': JSON.stringify({
-          entry: './',
-          include: ['**/*.js'],
-          exclude: ['node_modules/**'],
-          logLevel: 'info'
-        })
-      }));
+      mock(
+        baseMock({
+          '.lfifyrc.json': JSON.stringify({
+            entry: './',
+            include: ['**/*.js'],
+            exclude: ['node_modules/**'],
+            logLevel: 'info',
+          }),
+        }),
+      );
       const config = await resolveConfig({ configPath: '.lfifyrc.json' });
       expect(config.logLevel).toBe('info');
     });
 
     it('should override config file logLevel with CLI --log-level', async () => {
-      mock(baseMock({
-        '.lfifyrc.json': JSON.stringify({
-          entry: './',
-          include: ['**/*.js'],
-          exclude: ['node_modules/**'],
-          logLevel: 'warn'
-        })
-      }));
+      mock(
+        baseMock({
+          '.lfifyrc.json': JSON.stringify({
+            entry: './',
+            include: ['**/*.js'],
+            exclude: ['node_modules/**'],
+            logLevel: 'warn',
+          }),
+        }),
+      );
       const config = await resolveConfig({
         configPath: '.lfifyrc.json',
-        logLevel: 'info'
+        logLevel: 'info',
       });
       expect(config.logLevel).toBe('info');
     });
