@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { readFile, readdir, rename } = require("fs/promises");
+const { readFile, readdir, rename, unlink } = require("fs/promises");
 const { createReadStream, createWriteStream } = require("fs");
 const { resolve, join, relative } = require("path");
 const { isMatch } = require("micromatch");
@@ -373,6 +373,7 @@ async function processFile(filePath) {
     await rename(tmpPath, filePath);
   } catch (err) {
     logger.error(`error rename file: ${tmpPath} to ${filePath}`);
+    unlink(tmpPath);
     throw err;
   }
 }
