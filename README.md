@@ -30,7 +30,8 @@ Create `.lfifyrc.json`:
     "dist/**",
     "build/**",
     "coverage/**"
-  ]
+  ],
+  "logLevel": "error"
 }
 ```
 
@@ -48,6 +49,7 @@ npx lfify
 | `--entry <path>`      | Specify the entry directory to process. Default is `./`.                      |
 | `--include <pattern>` | Glob pattern(s) to include. Can be used multiple times.                       |
 | `--exclude <pattern>` | Glob pattern(s) to exclude. Can be used multiple times.                       |
+| `--log-level <level>` | Set log level: `error`, `warn`, or `info`. Default is `error`.                |
 
 ## Examples
 
@@ -63,6 +65,9 @@ npx lfify --entry ./src --include "**/*.js"
 
 # Use a custom config file
 npx lfify --config ./custom-config.json
+
+# Show detailed progress logs
+npx lfify --log-level > warn
 ```
 
 ## Default behavior
@@ -71,6 +76,7 @@ When no config file is found and no CLI options are provided, lfify uses sensibl
 
 - **include**: `**/*` (all files)
 - **exclude**: `node_modules/**`, `.git/**`, `dist/**`, `build/**`, `coverage/**`
+- **logLevel**: `error`
 
 ## Priority
 
