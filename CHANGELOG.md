@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/GyeongHoKim/lfify/compare/v1.2.0...v1.2.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* unlink tmp files when rename failed ([173a38f](https://github.com/GyeongHoKim/lfify/commit/173a38f026d2f37dc521a4a5e089d071cfd425c9))
+
 # [1.2.0](https://github.com/GyeongHoKim/lfify/compare/v1.1.0...v1.2.0) (2026-03-16)
 
 
