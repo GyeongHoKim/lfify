@@ -1,6 +1,5 @@
 const mock = require('mock-fs');
 const {
-  readConfig,
   parseArgs,
   processFile,
   resolveConfig,
@@ -35,37 +34,6 @@ describe('CRLF to LF Converter', () => {
   afterEach(() => {
     mock.restore();
     process.argv = originalArgv;
-  });
-
-  describe('readConfig', () => {
-    it('should return config when valid config file is provided', async () => {
-      const validConfig = {
-        entry: './',
-        include: ['*.js'],
-        exclude: ['node_modules/**'],
-      };
-      mock(baseMock({ '.lfifyrc.json': JSON.stringify(validConfig) }));
-
-      const config = await readConfig('.lfifyrc.json');
-
-      expect(config).toEqual(
-        expect.objectContaining({
-          entry: expect.any(String),
-          include: expect.any(Array),
-          exclude: expect.any(Array),
-        }),
-      );
-    });
-
-    it('should throw error when config file is not found', async () => {
-      await expect(readConfig('.lfifyrc.json')).rejects.toThrow();
-    });
-
-    it('should throw error when config file is invalid json', async () => {
-      mock(baseMock({ '.lfifyrc.json': 'invalid json' }));
-
-      await expect(readConfig('.lfifyrc.json')).rejects.toThrow();
-    });
   });
 
   describe('parseArgs', () => {
@@ -304,6 +272,12 @@ describe('CRLF to LF Converter', () => {
 
       expect(config.include).toEqual(SENSIBLE_DEFAULTS.include);
       expect(config.exclude).toEqual(SENSIBLE_DEFAULTS.exclude);
+    });
+
+    it('should throw when config file contains invalid JSON', async () => {
+      mock(baseMock({ '.lfifyrc.json': 'invalid json' }));
+      const options = { configPath: '.lfifyrc.json' };
+      await expect(resolveConfig(options)).rejects.toThrow();
     });
 
     it('should use CLI include with default exclude when only include provided', async () => {

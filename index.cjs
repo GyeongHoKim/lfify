@@ -36,17 +36,6 @@ const LOG_LEVELS = ['error', 'warn', 'info'];
  */
 
 /**
- * Default configuration
- * @type {Config}
- */
-const DEFAULT_CONFIG = {
-  entry: './',
-  include: [],
-  exclude: [],
-  logLevel: 'error',
-};
-
-/**
  * Sensible defaults when no config file is provided
  * @type {Config}
  */
@@ -107,46 +96,6 @@ const logger = {
     }
   },
 };
-
-/**
- * Read and validate configuration file
- * @param {string} configPath - path to configuration file
- * @returns {Promise<Config>} - validated configuration
- * @throws {Error} - if configuration is invalid or file is not found
- */
-async function readConfig(configPath) {
-  try {
-    const configContent = await readFile(configPath, 'utf8');
-    const config = JSON.parse(configContent);
-
-    // Validate required fields
-    for (const [key, validator] of Object.entries(CONFIG_SCHEMA)) {
-      if (config[key] && !validator(config[key])) {
-        throw new Error(`Invalid "${key}" in configuration file`);
-      }
-    }
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...config,
-      entry: resolve(process.cwd(), config.entry || DEFAULT_CONFIG.entry),
-    };
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      logger.error(`Configuration file not found: ${configPath}`, configPath);
-    } else {
-      logger.error(
-        `Error reading configuration file: ${err.message}`,
-        configPath,
-      );
-    }
-
-    if (require.main === module) {
-      process.exit(1);
-    }
-    throw err;
-  }
-}
 
 /**
  * Resolve final configuration from CLI options, config file, and defaults
@@ -431,7 +380,6 @@ if (require.main === module) {
 module.exports = {
   convertCRLFtoLF,
   processFile,
-  readConfig,
   parseArgs,
   resolveConfig,
   shouldProcessFile,
