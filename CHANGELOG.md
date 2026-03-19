@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/GyeongHoKim/lfify/compare/v1.2.1...v1.2.2) (2026-03-19)
+
+
+### Bug Fixes
+
+* single task failure causes entire process to fail ([e7a7ed8](https://github.com/GyeongHoKim/lfify/commit/e7a7ed8efdac8a738eb06659e12d156a7566278f))
+
 ## [1.2.1](https://github.com/GyeongHoKim/lfify/compare/v1.2.0...v1.2.1) (2026-03-18)
 
 
