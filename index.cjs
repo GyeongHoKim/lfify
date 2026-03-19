@@ -337,7 +337,7 @@ async function convertCRLFtoLF(dirPath, config) {
     /**
      * @todo Node.js is single-threaded, if I want to convert files in parallel, I need to use worker_threads
      */
-    await Promise.all(
+    const results = await Promise.allSettled(
       entries.map(async (entry) => {
         const fullPath = join(dirPath, entry.name);
         const relativePath = relative(process.cwd(), fullPath).replace(
@@ -354,6 +354,11 @@ async function convertCRLFtoLF(dirPath, config) {
         }
       }),
     );
+
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length > 0) {
+      throw failures[0].reason;
+    }
   } catch (err) {
     logger.error(`error reading directory: ${dirPath}`, dirPath, err);
     throw err;
@@ -397,7 +402,11 @@ async function processFile(filePath) {
     await rename(tmpPath, filePath);
   } catch (err) {
     logger.error(`error rename file: ${tmpPath} to ${filePath}`);
-    unlink(tmpPath);
+    try {
+      await unlink(tmpPath);
+    } catch (unlinkErr) {
+      logger.error(`error removing tmp file: ${tmpPath}`, tmpPath, unlinkErr);
+    }
     throw err;
   }
 }
