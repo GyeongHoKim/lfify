@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/GyeongHoKim/lfify/compare/v1.2.2...v1.2.3) (2026-03-26)
+
+
+### Bug Fixes
+
+* enoperm when pre-commit hook ([0a5719e](https://github.com/GyeongHoKim/lfify/commit/0a5719eb4c60526ca47b8cbe588d434fb5d5772e))
+
 ## [1.2.2](https://github.com/GyeongHoKim/lfify/compare/v1.2.1...v1.2.2) (2026-03-19)
 
 
