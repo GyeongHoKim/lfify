@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 
-const { readFile, readdir, rename, unlink } = require('fs/promises');
-const { createReadStream, createWriteStream } = require('fs');
+const { readFile, writeFile, readdir } = require('fs/promises');
 const { resolve, join, relative } = require('path');
 const { isMatch } = require('micromatch');
-const { Transform } = require('stream');
-const { pipeline } = require('stream/promises');
 
 /** @type {ReadonlyArray<string>} */
 const LOG_LEVELS = ['error', 'warn', 'info'];
@@ -321,41 +318,14 @@ async function convertCRLFtoLF(dirPath, config) {
  * @throws {Error} - if there's an error reading or writing file
  */
 async function processFile(filePath) {
-  const tmpPath = `${filePath}.tmp`;
-  const crlf2lf = new Transform({
-    transform(chunk, encoding, callback) {
-      const enc = encoding === 'buffer' ? 'utf8' : encoding;
-      const prev = this._leftover ?? '';
-      this._leftover = '';
-      const str = prev + chunk.toString(enc);
-      const safe = str.endsWith('\r') ? str.slice(0, -1) : str;
-      this._leftover = str.endsWith('\r') ? '\r' : '';
-      callback(null, safe.replace(/\r\n/g, '\n'));
-    },
-    flush(callback) {
-      callback(null, this._leftover ?? '');
-    },
-  });
   try {
-    await pipeline(
-      createReadStream(filePath, { encoding: 'utf8' }),
-      crlf2lf,
-      createWriteStream(tmpPath, { encoding: 'utf8' }),
-    );
+    const content = await readFile(filePath, 'utf8');
+    const converted = content.replace(/\r\n/g, '\n');
+    if (converted === content) return;
+    await writeFile(filePath, converted, 'utf8');
     logger.info(`converted ${filePath}`);
   } catch (err) {
     logger.error(`error processing file: ${filePath}`, filePath, err);
-    throw err;
-  }
-  try {
-    await rename(tmpPath, filePath);
-  } catch (err) {
-    logger.error(`error rename file: ${tmpPath} to ${filePath}`);
-    try {
-      await unlink(tmpPath);
-    } catch (unlinkErr) {
-      logger.error(`error removing tmp file: ${tmpPath}`, tmpPath, unlinkErr);
-    }
     throw err;
   }
 }
