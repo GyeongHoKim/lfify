@@ -5,15 +5,11 @@ It is useful when your development environment is Windows.
 
 ## Getting started
 
-### Using CLI options (no config file needed)
+You can run LFify from git hooks using [Husky](https://typicode.github.io/husky/) or [Lefthook](https://github.com/evilmartians/lefthook).
 
-```bash
-npx lfify --include "**/*.js" --exclude "node_modules/**"
-```
+### Config file
 
-### Using config file
-
-Create `.lfifyrc.json`:
+Create `.lfifyrc.json` in your root directory of project:
 
 ```json
 {
@@ -35,13 +31,45 @@ Create `.lfifyrc.json`:
 }
 ```
 
-Then run:
+### Husky
+
+Install Husky and create a `pre-commit` hook:
 
 ```bash
+npm install -D husky
+npx husky init
+```
+
+Edit `.husky/pre-commit` so it runs LFify (add or replace the file contents):
+
+```sh
 npx lfify
 ```
 
-## Options
+### Lefthook
+
+Add `lefthook.yml` at the repository root:
+
+```yaml
+pre-commit:
+  commands:
+    lfify:
+      run: npx lfify
+```
+
+Install Lefthook hooks (once per clone):
+
+```bash
+npx lefthook install
+```
+
+### Manual execution
+
+```bash
+npx lfify --include "**/*.js" --exclude "node_modules/**"
+```
+
+## CLI Options
 
 | Option                | Description                                                                   |
 | --------------------- | ----------------------------------------------------------------------------- |
