@@ -1,7 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { resolveConfig, convertCRLFtoLF } = require('./index.cjs');
+const { resolveConfig, convertCRLFtoLF, convert } = require('./index.cjs');
 
 const FIXTURES_DIR = path.join(__dirname, '__fixtures__');
 const CRLF = Buffer.from([0x0d, 0x0a]);
@@ -135,6 +135,36 @@ describe('E2E: CRLF to LF with real filesystem', () => {
       const fileJs = await fs.readFile(path.join(tempDir, 'src', 'file.js'));
       expect(fileJs.includes(CRLF)).toBe(false);
       expect(fileJs.equals(Buffer.from('const x = 1;\n', 'utf8'))).toBe(true);
+    });
+  });
+
+  describe('US5: file input', () => {
+    it('converts only the specified file when entry is a file', async () => {
+      await copyDir(path.join(FIXTURES_DIR, 'cli-override'), tempDir);
+      process.chdir(tempDir);
+
+      const config = await resolveConfig({ entry: './src/b.txt' });
+      await convert(config.entry, config);
+
+      const bTxt = await fs.readFile(path.join(tempDir, 'src', 'b.txt'));
+      expect(bTxt.includes(CRLF)).toBe(false);
+      expect(bTxt.equals(Buffer.from('b content\n', 'utf8'))).toBe(true);
+
+      const aJs = await fs.readFile(path.join(tempDir, 'src', 'a.js'));
+      expect(aJs.includes(CRLF)).toBe(true);
+    });
+  });
+
+  describe('US6: positional entry', () => {
+    it('resolves entry from a plain path argument like --entry does', async () => {
+      await copyDir(path.join(FIXTURES_DIR, 'cli-override'), tempDir);
+      process.chdir(tempDir);
+
+      const config = await resolveConfig({ entry: './src' });
+      await convert(config.entry, config);
+
+      const bTxt = await fs.readFile(path.join(tempDir, 'src', 'b.txt'));
+      expect(bTxt.includes(CRLF)).toBe(false);
     });
   });
 });

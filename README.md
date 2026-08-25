@@ -73,11 +73,15 @@ npx lfify --include "**/*.js" --exclude "node_modules/**"
 
 | Option                | Description                                                                   |
 | --------------------- | ----------------------------------------------------------------------------- |
+| `[path]`              | Positional shorthand for `--entry`. A directory is traversed, a single file is converted as-is. |
 | `--config <path>`     | Specify a custom path for the configuration file. Default is `.lfifyrc.json`. |
-| `--entry <path>`      | Specify the entry directory to process. Default is `./`.                      |
+| `--entry <path>`      | Specify the entry path to process (file or directory). Default is `./`.       |
 | `--include <pattern>` | Glob pattern(s) to include. Can be used multiple times.                       |
 | `--exclude <pattern>` | Glob pattern(s) to exclude. Can be used multiple times.                       |
 | `--log-level <level>` | Set log level: `error`, `warn`, or `info`. Default is `error`.                |
+
+When both `--entry` and a positional path are given, `--entry` takes precedence.
+When the entry is a single file, it is converted directly and include/exclude patterns are ignored.
 
 ## Examples
 
@@ -90,6 +94,13 @@ npx lfify --include "**/*.js" --include "**/*.ts" --exclude "node_modules/**" --
 
 # Process files in a specific directory
 npx lfify --entry ./src --include "**/*.js"
+
+# Same as above: positional path instead of --entry
+npx lfify ./src
+
+# Convert a single file
+npx lfify src/app.js
+npx lfify --entry src/app.js
 
 # Use a custom config file
 npx lfify --config ./custom-config.json

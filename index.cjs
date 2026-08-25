@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { readFile, writeFile, readdir } = require('fs/promises');
+const { readFile, writeFile, readdir, stat } = require('fs/promises');
 const { resolve, join, relative } = require('path');
 const { isMatch } = require('micromatch');
 
@@ -9,7 +9,7 @@ const LOG_LEVELS = ['error', 'warn', 'info'];
 
 /**
  * @typedef {Object} Config
- * @property {string} entry - 처리할 시작 디렉토리 경로
+ * @property {string} entry - 처리할 시작 경로 (파일 또는 디렉토리)
  * @property {string[]} include - 포함할 파일 패턴 목록
  * @property {string[]} exclude - 제외할 파일 패턴 목록
  * @property {'error'|'warn'|'info'} [logLevel] - 로그 레벨 (error: 에러만, warn: 에러+경고, info: 전체)
@@ -26,7 +26,7 @@ const LOG_LEVELS = ['error', 'warn', 'info'];
 /**
  * @typedef {Object} CommandOptions
  * @property {string} [configPath] - 설정 파일 경로
- * @property {string} [entry] - CLI로 지정한 entry 경로
+ * @property {string} [entry] - CLI로 지정한 entry 경로 (--entry 옵션 또는 위치 인자)
  * @property {string[]} [include] - CLI로 지정한 include 패턴
  * @property {string[]} [exclude] - CLI로 지정한 exclude 패턴
  * @property {'error'|'warn'|'info'} [logLevel] - CLI로 지정한 로그 레벨
@@ -208,6 +208,8 @@ function parseArgs() {
   const options = {
     configPath: '.lfifyrc.json',
   };
+  /** @type {string[]} */
+  const positionals = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -250,7 +252,18 @@ function parseArgs() {
           i++;
         }
         break;
+
+      default:
+        if (!arg.startsWith('-')) {
+          positionals.push(arg);
+        }
+        break;
     }
+  }
+
+  // Positional argument acts as a shorthand for --entry, but --entry wins
+  if (options.entry === undefined && positionals.length > 0) {
+    options.entry = positionals[0];
   }
 
   return options;
@@ -338,9 +351,37 @@ async function main() {
 
   logger.info(`converting CRLF to LF in: ${config.entry}`, config.entry);
 
-  await convertCRLFtoLF(config.entry, config);
+  await convert(config.entry, config);
 
   logger.info('conversion completed.', config.entry);
+}
+
+/**
+ * Convert CRLF to LF for the given entry path.
+ * A file entry is converted as-is (include/exclude patterns are ignored),
+ * a directory entry is traversed recursively.
+ * @param {string} entryPath - entry path (file or directory)
+ * @param {Config} config - configuration object
+ * @returns {Promise<void>}
+ * @throws {Error} - if the path does not exist or processing fails
+ */
+async function convert(entryPath, config) {
+  let stats;
+  try {
+    stats = await stat(entryPath);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      logger.error(`error: path does not exist: ${entryPath}`, entryPath);
+    }
+    throw err;
+  }
+
+  if (stats.isFile()) {
+    await processFile(entryPath);
+    return;
+  }
+
+  await convertCRLFtoLF(entryPath, config);
 }
 
 if (require.main === module) {
@@ -353,5 +394,6 @@ module.exports = {
   parseArgs,
   resolveConfig,
   shouldProcessFile,
+  convert,
   SENSIBLE_DEFAULTS,
 };

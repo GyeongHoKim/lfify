@@ -4,9 +4,11 @@ const {
   processFile,
   resolveConfig,
   shouldProcessFile,
+  convert,
   SENSIBLE_DEFAULTS,
 } = require('./index.cjs');
 const fs = require('fs');
+const { resolve } = require('path');
 
 function baseMock(overrides = {}) {
   return {
@@ -133,6 +135,18 @@ describe('CRLF to LF Converter', () => {
       expect(options.entry).toBeUndefined();
     });
 
+    it('should use positional argument as entry when no flags are provided', () => {
+      process.argv = ['node', 'lfify', './src'];
+      const options = parseArgs();
+      expect(options.entry).toBe('./src');
+    });
+
+    it('should prefer --entry over positional argument when both are provided', () => {
+      process.argv = ['node', 'lfify', '--entry', './lib', './src'];
+      const options = parseArgs();
+      expect(options.entry).toBe('./lib');
+    });
+
     it('should return logLevel when --log-level option is provided', () => {
       process.argv = ['node', 'lfify', '--log-level', 'warn'];
       const options = parseArgs();
@@ -203,6 +217,62 @@ describe('CRLF to LF Converter', () => {
       const content = await fs.promises.readFile('./src/clean.txt', 'utf8');
 
       expect(content).toBe('hello\nworld\n');
+    });
+  });
+
+  describe('convert', () => {
+    it('should convert only the given file when entry is a file, even if exclude patterns would match it', async () => {
+      const config = {
+        entry: resolve('src/file1.txt'),
+        include: ['**/*.js'],
+        exclude: ['**/*.txt'],
+      };
+
+      await convert(config.entry, config);
+
+      const converted = await fs.promises.readFile('src/file1.txt', 'utf8');
+      expect(converted).toBe('hello\nworld\n');
+    });
+
+    it('should not touch other files when entry is a single file', async () => {
+      const config = {
+        entry: resolve('src/file1.txt'),
+        include: ['**/*'],
+        exclude: [],
+      };
+
+      await convert(config.entry, config);
+
+      const untouched = await fs.promises.readFile('src/file2.js', 'utf8');
+      expect(untouched).toBe('console.log("test");\r\n');
+    });
+
+    it('should traverse directory when entry is a directory', async () => {
+      const config = {
+        entry: resolve('src'),
+        include: ['**/*'],
+        exclude: [],
+      };
+
+      await convert(config.entry, config);
+
+      const file1 = await fs.promises.readFile('src/file1.txt', 'utf8');
+      expect(file1).toBe('hello\nworld\n');
+      const subdirFile = await fs.promises.readFile(
+        'src/subdir/file3.txt',
+        'utf8',
+      );
+      expect(subdirFile).toBe('test\n');
+    });
+
+    it('should reject when entry path does not exist', async () => {
+      const config = {
+        entry: resolve('nonexistent-path'),
+        include: ['**/*'],
+        exclude: [],
+      };
+
+      await expect(convert(config.entry, config)).rejects.toThrow();
     });
   });
 
