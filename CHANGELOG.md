@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/GyeongHoKim/lfify/compare/v1.2.3...v1.3.0) (2026-08-26)
+
+
+### Features
+
+* support file input and positional entry argument ([02d7110](https://github.com/GyeongHoKim/lfify/commit/02d7110d1cddfaf3ac1851fafc917821ff9f823a))
+
 ## [1.2.3](https://github.com/GyeongHoKim/lfify/compare/v1.2.2...v1.2.3) (2026-03-26)
 
 

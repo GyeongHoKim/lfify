@@ -1,6 +1,6 @@
 {
   "name": "lfify",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "private": false,
   "description": "make your crlf to lf",
   "main": "index.cjs",
