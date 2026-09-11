@@ -69,16 +69,23 @@ npx lefthook install
 npx lfify --include "**/*.js" --exclude "node_modules/**"
 ```
 
+Check for CRLF line endings without modifying files:
+
+```bash
+npx lfify --check
+```
+
 ## CLI Options
 
-| Option                | Description                                                                   |
-| --------------------- | ----------------------------------------------------------------------------- |
+| Option                | Description                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
 | `[path]`              | Positional shorthand for `--entry`. A directory is traversed, a single file is converted as-is. |
-| `--config <path>`     | Specify a custom path for the configuration file. Default is `.lfifyrc.json`. |
-| `--entry <path>`      | Specify the entry path to process (file or directory). Default is `./`.       |
-| `--include <pattern>` | Glob pattern(s) to include. Can be used multiple times.                       |
-| `--exclude <pattern>` | Glob pattern(s) to exclude. Can be used multiple times.                       |
-| `--log-level <level>` | Set log level: `error`, `warn`, or `info`. Default is `error`.                |
+| `--config <path>`     | Specify a custom path for the configuration file. Default is `.lfifyrc.json`.                   |
+| `--entry <path>`      | Specify the entry path to process (file or directory). Default is `./`.                         |
+| `--include <pattern>` | Glob pattern(s) to include. Can be used multiple times.                                         |
+| `--exclude <pattern>` | Glob pattern(s) to exclude. Can be used multiple times.                                         |
+| `--check`             | Check for CRLF line endings without modifying files. Exits with code 1 when any are found.      |
+| `--log-level <level>` | Set log level: `error`, `warn`, or `info`. Default is `error`.                                  |
 
 When both `--entry` and a positional path are given, `--entry` takes precedence.
 When the entry is a single file, it is converted directly and include/exclude patterns are ignored.
@@ -107,6 +114,9 @@ npx lfify --config ./custom-config.json
 
 # Show detailed progress logs
 npx lfify --log-level > warn
+
+# Check for CRLF without modifying files (suited to CI)
+npx lfify --check
 ```
 
 ## Default behavior
