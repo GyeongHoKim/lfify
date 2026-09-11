@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/GyeongHoKim/lfify/compare/v1.3.0...v1.4.0) (2026-09-11)
+
+
+### Features
+
+* add check mode ([c96d539](https://github.com/GyeongHoKim/lfify/commit/c96d539534498fdb09f5374ced987dfa6faf786e))
+
 # [1.3.0](https://github.com/GyeongHoKim/lfify/compare/v1.2.3...v1.3.0) (2026-08-26)
 
 
