@@ -30,6 +30,7 @@ const LOG_LEVELS = ['error', 'warn', 'info'];
  * @property {string[]} [include] - CLI로 지정한 include 패턴
  * @property {string[]} [exclude] - CLI로 지정한 exclude 패턴
  * @property {'error'|'warn'|'info'} [logLevel] - CLI로 지정한 로그 레벨
+ * @property {boolean} [check] - CRLF 존재 여부만 검사하는 모드
  */
 
 /**
@@ -216,6 +217,10 @@ function parseArgs() {
     const nextArg = args[i + 1];
 
     switch (arg) {
+      case '--check':
+        options.check = true;
+        break;
+
       case '--config':
         if (nextArg) {
           options.configPath = nextArg;
@@ -325,6 +330,37 @@ async function convertCRLFtoLF(dirPath, config) {
 }
 
 /**
+ * Recursively find files with CRLF line endings without modifying them.
+ * @param {string} dirPath - directory path to search
+ * @param {Config} config - configuration object
+ * @returns {Promise<string[]>} paths of files that contain CRLF line endings
+ */
+async function checkCRLFtoLF(dirPath, config) {
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  const results = await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = join(dirPath, entry.name);
+      const relativePath = relative(process.cwd(), fullPath).replace(
+        /\\/g,
+        '/',
+      );
+
+      if (entry.isDirectory()) {
+        return checkCRLFtoLF(fullPath, config);
+      }
+
+      if (entry.isFile() && shouldProcessFile(relativePath, config)) {
+        return (await hasCRLF(fullPath)) ? [fullPath] : [];
+      }
+
+      return [];
+    }),
+  );
+
+  return results.flat();
+}
+
+/**
  * convert CRLF to LF
  * @param {string} filePath - full path of the file to process
  * @returns {Promise<void>}
@@ -343,17 +379,59 @@ async function processFile(filePath) {
   }
 }
 
+/**
+ * Check whether a file contains CRLF line endings.
+ * @param {string} filePath - full path of the file to check
+ * @returns {Promise<boolean>}
+ */
+async function hasCRLF(filePath) {
+  const content = await readFile(filePath, 'utf8');
+  return content.includes('\r\n');
+}
+
 async function main() {
   const options = parseArgs();
   const config = await resolveConfig(options);
 
   logger.setLogLevel(config.logLevel);
 
+  if (options.check) {
+    const filesWithCRLF = await check(config.entry, config);
+
+    if (filesWithCRLF.length > 0) {
+      filesWithCRLF.forEach((filePath) => {
+        logger.error('CRLF found:', filePath);
+      });
+      logger.error(`${filesWithCRLF.length} file(s) contain CRLF`, '');
+      process.exitCode = 1;
+    }
+    return;
+  }
+
   logger.info(`converting CRLF to LF in: ${config.entry}`, config.entry);
 
   await convert(config.entry, config);
 
   logger.info('conversion completed.', config.entry);
+}
+
+/**
+ * Check CRLF line endings for the given entry path without modifying files.
+ * A file entry is checked as-is (include/exclude patterns are ignored),
+ * a directory entry is traversed recursively.
+ * @param {string} entryPath - entry path (file or directory)
+ * @param {Config} config - configuration object
+ * @returns {Promise<string[]>} paths of files that contain CRLF line endings
+ * @throws {Error} - if the path does not exist or checking fails
+ */
+async function check(entryPath, config) {
+  const stats = await stat(entryPath);
+
+  if (stats.isFile()) {
+    return (await hasCRLF(entryPath)) ? [entryPath] : [];
+  }
+
+  return checkCRLFtoLF(entryPath, config);
 }
 
 /**
@@ -391,6 +469,8 @@ if (require.main === module) {
 module.exports = {
   convertCRLFtoLF,
   processFile,
+  checkCRLFtoLF,
+  check,
   parseArgs,
   resolveConfig,
   shouldProcessFile,
