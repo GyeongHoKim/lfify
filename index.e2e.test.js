@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { spawnSync } = require('child_process');
 const { resolveConfig, convertCRLFtoLF, convert } = require('./index.cjs');
 
 const FIXTURES_DIR = path.join(__dirname, '__fixtures__');
@@ -165,6 +166,66 @@ describe('E2E: CRLF to LF with real filesystem', () => {
 
       const bTxt = await fs.readFile(path.join(tempDir, 'src', 'b.txt'));
       expect(bTxt.includes(CRLF)).toBe(false);
+    });
+  });
+
+  describe('US7: check mode', () => {
+    it('reports CRLF files to stderr, exits with 1, and does not modify files', async () => {
+      const sourceDir = path.join(tempDir, 'src');
+      const badFile = path.join(sourceDir, 'bad.js');
+      const goodFile = path.join(sourceDir, 'good.js');
+      await fs.mkdir(sourceDir);
+      await fs.writeFile(badFile, 'const bad = true;\r\n', 'utf8');
+      await fs.writeFile(goodFile, 'const good = true;\n', 'utf8');
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'index.cjs'),
+          '--check',
+          '--entry',
+          './src',
+          '--include',
+          '**/*.js',
+        ],
+        { cwd: tempDir, encoding: 'utf8' },
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(path.join(tempDir, 'src', 'bad.js'));
+      expect(result.stderr).toContain('1 file(s) contain CRLF');
+      await expect(fs.readFile(badFile, 'utf8')).resolves.toBe(
+        'const bad = true;\r\n',
+      );
+      await expect(fs.readFile(goodFile, 'utf8')).resolves.toBe(
+        'const good = true;\n',
+      );
+    });
+
+    it('exits with 0 when no CRLF files are found', async () => {
+      const sourceDir = path.join(tempDir, 'src');
+      await fs.mkdir(sourceDir);
+      await fs.writeFile(
+        path.join(sourceDir, 'good.js'),
+        'const good = true;\n',
+        'utf8',
+      );
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'index.cjs'),
+          '--check',
+          '--entry',
+          './src',
+          '--include',
+          '**/*.js',
+        ],
+        { cwd: tempDir, encoding: 'utf8' },
+      );
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
     });
   });
 });
