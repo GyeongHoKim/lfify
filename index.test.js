@@ -4,6 +4,7 @@ const {
   processFile,
   resolveConfig,
   shouldProcessFile,
+  check,
   convert,
   SENSIBLE_DEFAULTS,
 } = require('./index.cjs');
@@ -159,6 +160,12 @@ describe('CRLF to LF Converter', () => {
         expect(parseArgs().logLevel).toBe(level);
       }
     });
+
+    it('should enable check mode when --check is provided', () => {
+      process.argv = ['node', 'lfify', '--check'];
+
+      expect(parseArgs().check).toBe(true);
+    });
   });
 
   describe('shouldProcessFile', () => {
@@ -273,6 +280,50 @@ describe('CRLF to LF Converter', () => {
       };
 
       await expect(convert(config.entry, config)).rejects.toThrow();
+    });
+  });
+
+  describe('check', () => {
+    it('should report CRLF files without modifying them', async () => {
+      const config = {
+        entry: resolve('src'),
+        include: ['**/*'],
+        exclude: [],
+      };
+
+      await expect(check(config.entry, config)).resolves.toEqual([
+        resolve('src/file1.txt'),
+        resolve('src/file2.js'),
+        resolve('src/subdir/file3.txt'),
+      ]);
+
+      const content = await fs.promises.readFile('src/file1.txt', 'utf8');
+      expect(content).toBe('hello\r\nworld\r\n');
+    });
+
+    it('should respect include and exclude patterns for directory entries', async () => {
+      const config = {
+        entry: resolve('.'),
+        include: ['**/*.js'],
+        exclude: ['node_modules/**', 'test/**'],
+      };
+
+      await expect(check(config.entry, config)).resolves.toEqual([
+        resolve('index.js'),
+        resolve('src/file2.js'),
+      ]);
+    });
+
+    it('should check a file entry even when patterns exclude it', async () => {
+      const config = {
+        entry: resolve('src/file1.txt'),
+        include: ['**/*.js'],
+        exclude: ['**/*.txt'],
+      };
+
+      await expect(check(config.entry, config)).resolves.toEqual([
+        resolve('src/file1.txt'),
+      ]);
     });
   });
 
